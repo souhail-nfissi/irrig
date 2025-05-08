@@ -1,3 +1,5 @@
+from app.db.session import get_db
+from sqlalchemy.orm import Session
 from app.schemas.irrigation import (
     NRnInput,
     NRnOut,
@@ -11,36 +13,26 @@ from app.schemas.irrigation import (
     DtOut,
 )
 from app.services.irrigation_service import (
-    calculate_ETc,
-    calculate_Pe,
     calculate_NRn,
-    calculate_RL,
-    calculate_FL,
-    calculate_Rt,
     calculate_Ea,
     calculate_Dn,
 )
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 router = APIRouter()
 
 @router.get("/calculateNRn", response_model=NRnOut)
-def get_NRn(data: NRnInput):
-    etc = calculate_ETc(data.Kc, data.ET0)
-    pe = calculate_Pe(data.P)
-    nrn = calculate_NRn(etc, pe)
+def get_NRn(data: NRnInput, db: Session = Depends(get_db)):
+    NRn, Pe, ETc = calculate_NRn(db=db, **dict(data))
     return NRnOut(
-        ETc=round(etc, 2),
-        Pe=round(pe, 2),
-        NRn=round(nrn, 2),
+        NRn=round(NRn, 2),
+        Pe=round(Pe, 2),
+        ETc=round(ETc, 2),
     )
 
 @router.get("/calculateEa", response_model=EaOut)
-def get_Ea(data: EaInput):
-    RL = calculate_RL(CEa=data.CEa, CEemax=data.CEemax)
-    FL = calculate_FL(EL=data.EL, RL=RL)
-    Rt = calculate_Rt(H=data.H, climate=data.climate, texture=data.texture)
-    Ea = calculate_Ea(Rt=Rt, CU=data.CU, FL=FL)
+def get_Ea(data: EaInput, db: Session = Depends(get_db)):
+    Ea, Rt, RL, FL = calculate_Ea(db=db, **dict(data))
 
     return EaOut(
         Ea=round(Ea, 2),
@@ -51,29 +43,55 @@ def get_Ea(data: EaInput):
 
 
 @router.get("/calculateNRt", response_model=NRtOut)
-def get_NRt(data: NRtInput):
-    NRnOut = get_NRn(NRnInput(**dict(data)))
-    EaOut = get_Ea(EaInput(**dict(data)))
+def get_NRt(data: NRtInput, db: Session = Depends(get_db)):
+    NRn, *_ = calculate_NRn(
+        db=db,
+        crop_name=data.crop_name,
+        ET0=data.ET0,
+        P=data.P,
+    )
+    Ea, *_ = calculate_Ea(
+        db=db,
+        crop_name=data.crop_name,
+        CEa=data.CEa,
+        EL=data.EL,
+        texture=data.texture,
+        climate=data.climate,
+        CU=data.CU,
+    )
 
     return NRtOut(
-        NRt=round(NRnOut.NRn/EaOut.Ea, 2),
-        NRn=round(NRnOut.NRn, 2),
-        Ea=round(EaOut.Ea, 2),
+        NRt=round(NRn/Ea, 2),
+        NRn=round(NRn, 2),
+        Ea=round(Ea, 2),
     )
 
 @router.get("/calculateDn", response_model=DnOut)
-def get_Dn(data: DnInput):
+def get_Dn(data: DnInput, db: Session = Depends(get_db)):
     return DnOut(
-        Dn=calculate_Dn(**dict(data)),
+        Dn=calculate_Dn(db=db, **dict(data)),
     )
 
 @router.get("/calculateDt", response_model=DtOut)
-def get_Dt(data: DtInput):
-    DnOut = get_Dn(DnInput(**dict(data)))
-    EaOut = get_Ea(EaInput(**dict(data)))
+def get_Dt(data: DtInput, db: Session = Depends(get_db)):
+    Dn = calculate_Dn(
+        db=db,
+        crop_name=data.crop_name,
+        Cc=data.Cc,
+        Pm=data.Pm,
+    )
+    Ea, *_ = calculate_Ea(
+        db=db,
+        crop_name=data.crop_name,
+        CEa=data.CEa,
+        EL=data.EL,
+        texture=data.texture,
+        climate=data.climate,
+        CU=data.CU,
+    )
 
     return DtOut(
-        Dt=round(DnOut.Dn/EaOut.Ea, 2),
-        Dn=round(DnOut.Dn, 2),
-        Ea=round(EaOut.Ea, 2),
+        Dt=round(Dn/Ea, 2),
+        Dn=round(Dn, 2),
+        Ea=round(Ea, 2),
     )

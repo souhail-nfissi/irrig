@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from app.services.irrigation_service import Texture, Climate
 
 class NRnInput(BaseModel):
-    Kc: float
+    crop_name: str
     ET0: float
     P: float
 
@@ -12,18 +12,12 @@ class NRnOut(BaseModel):
     Pe: float
 
 class EaInput(BaseModel):
-    CU: float
-
-    # RT
-    H: float
+    crop_name: str
+    CEa: float
+    EL: float
     texture: Texture
     climate: Climate
-
-    # FL
-    EL: float
-    # FL: RL
-    CEa: float
-    CEemax: float
+    CU: float
 
 class EaOut(BaseModel):
     Ea: float
@@ -33,7 +27,8 @@ class EaOut(BaseModel):
 
 
 class NRtInput(BaseModel):
-    Kc: float
+    crop_name: str
+    # Kc: float
     ET0: float
     P: float
 
@@ -56,33 +51,23 @@ class NRtOut(BaseModel):
 
 
 class DnInput(BaseModel):
-    H: float
+    crop_name: str
     Cc: float
     Pm: float
-    f: float
 
 class DnOut(BaseModel):
     Dn: float
 
 class DtInput(BaseModel):
-    H: float
+    crop_name: str
     Cc: float
     Pm: float
-    f: float
 
-
-    CU: float
-
-    # RT
-    H: float
+    CEa: float
+    EL: float
     texture: Texture
     climate: Climate
-
-    # FL
-    EL: float
-    # FL: RL
-    CEa: float
-    CEemax: float
+    CU: float
 
 class DtOut(BaseModel):
     Dt: float

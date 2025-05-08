@@ -1,3 +1,6 @@
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from app.models.crop import Crop
 from enum import Enum
 
 class Texture(str, Enum):
@@ -15,12 +18,12 @@ class Climate(str, Enum):
 # goutte-à-goutte, en absence de ruissellement, la relation de transpiration
 # peut s’estimer à partir de la relation de percolation selon les valeurs du
 # cadre suivant:
-def calculate_Rt(H: float, climate: Climate, texture: Texture) -> float:
+def calculate_Rt(crop: Crop, climate: Climate, texture: Texture) -> float:
     """Calcuate Transpiration Ratio (Rt) for agricultural use
         Returns:
             Rt (float): (relation de transpiration)
     """
-    if H < 75:
+    if crop.H < 75:
         return {
             Climate.ARID: {
                 Texture.HEAVY: 0.85,
@@ -35,7 +38,7 @@ def calculate_Rt(H: float, climate: Climate, texture: Texture) -> float:
                 Texture.FINE: 0.90,
             },
         }[climate][texture]
-    elif H <= 150:
+    elif crop.H <= 150:
         return {
             Climate.ARID: {
                 Texture.HEAVY: 0.90,
@@ -66,8 +69,8 @@ def calculate_Rt(H: float, climate: Climate, texture: Texture) -> float:
             },
         }[climate][texture]
 
-def calculate_Dn(H: float, Cc: float, Pm: float, f: float) -> float:
-    """Calculate Net Irrigation Requirement (Dn)
+def calculate_Dn(db: Session, crop_name: str, Cc: float, Pm: float) -> float:
+    """Calculate Net Irrigation Requirement (Dn) XYZ
         Args:
             H (float):  Profondeur des racines [cm]
             Cc (float): Capacité au champ [mm/cm]
@@ -76,10 +79,14 @@ def calculate_Dn(H: float, Cc: float, Pm: float, f: float) -> float:
         Returns:
             Dn (float): Dose nette d’arrosage [mm]
     """
-    return H * (Cc - Pm) * f
+    crop = db.query(Crop).filter(Crop.name == crop_name).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
 
-def calculate_RL(CEa: float, CEemax: float) -> float:
-    """Calculate The Leaching Requirement (LR)
+    return crop.H * (Cc - Pm) * crop.f
+
+def calculate_RL(crop: Crop, CEa: float) -> float:
+    """Calculate The Leaching Requirement (LR) XYZ
         Args:
             CEa (float): est la conductivité électrique de l’eau d’arrosage en [dS/m].
             CEemax (float): est la conductivité électrique du sol à partir de
@@ -93,7 +100,7 @@ def calculate_RL(CEa: float, CEemax: float) -> float:
             RL (float): La relation de lavage
 
     """
-    return CEa / (2 * CEemax)
+    return CEa / (2 * crop.CEemax)
 
 def calculate_FL(EL: float, RL: float) -> float:
     """Calculate Leaching Fraction
@@ -105,7 +112,29 @@ def calculate_FL(EL: float, RL: float) -> float:
     """
     return 1 - (EL / RL)
 
-def calculate_Ea(Rt: float, CU: float, FL: float, Fr: float = 1) -> float:
+def calculate_Ea(
+        db: Session,
+        crop_name: str,
+        CEa: float,
+        EL: float,
+        climate: Climate,
+        texture: Texture,
+        CU: float,
+        Fr: float = 1
+) -> tuple[float, ...]:
+    crop = db.query(Crop).filter(Crop.name == crop_name).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
+
+    RL = calculate_RL(crop=crop, CEa=CEa)
+    FL = calculate_FL(EL=EL, RL=RL)
+    Rt = calculate_Rt(crop=crop, climate=climate, texture=texture)
+    Ea = Rt * CU * Fr * FL
+
+    return Ea , Rt, RL, FL
+
+
+def calculate_Ea_old(Rt: float, CU: float, FL: float, Fr: float = 1) -> float:
     """Calculate Irrigation Efficiency
         Args:
             Rt (float): Relation de transpiration
@@ -117,15 +146,20 @@ def calculate_Ea(Rt: float, CU: float, FL: float, Fr: float = 1) -> float:
     """
     return Rt * CU * Fr * FL
 
-def calculate_ETc(Kc: float, ET0: float) -> float:
-    """ Calculate Evapotranspiration
+def calculate_ETc(crop: Crop, ET0: float) -> float:
+    """ Calculate Evapotranspiration XYZ
         Args:
+            db (Session): SQLAlchemy database session.
+            crop_name (str): The name of the crop.
             ET0 (float): Évapotranspiration de référence [mm/mois] ou [mm/jour]
             Kc (float):   Coefficient de culture [-]
         Returns:
             ETc (float): Évapotranspiration
+
+        Raises:
+            HTTPException: If the crop does not exist in the database.
     """
-    return Kc * ET0
+    return crop.Kc * ET0
 
 def calculate_Pe(P: float) -> float:
     """ Calcualte Monthly Recorded Precipitation
@@ -136,8 +170,8 @@ def calculate_Pe(P: float) -> float:
     """
     return 0.8 * P - 25 if P > 75 else 0.6 * P - 10
 
-def calculate_NRn(ETc: float, Pe: float) -> float:
-    """Calculate  Calculate Net Water Requirements
+def calculate_NRn(db: Session, crop_name: str, ET0: float, P: float) -> tuple[float, float, float]:
+    """Calculate  Calculate Net Water Requirements XYZ
         Args:
             ETc (float): Evapotranspiration de la culture [mm/mois] ou [mm/jour]
             Pe (float): Précipitations efficaces [mm/mois] ou [mm/jour]
@@ -145,7 +179,16 @@ def calculate_NRn(ETc: float, Pe: float) -> float:
         Returns:
             NRn (float) : Besoins hydriques nets  [mm/mois] ou [mm/jour]
     """
-    return ETc - Pe
+    crop = db.query(Crop).filter(Crop.name == crop_name).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
+
+    ETc = calculate_ETc(crop=crop, ET0=ET0)
+    Pe = calculate_Pe(P)
+
+    NRn = ETc - Pe
+
+    return NRn, Pe, ETc
 
 def calculate_NRt(NRn: float, Ea: float) -> float:
     """Calculate  Calculate Total Water Requirements
