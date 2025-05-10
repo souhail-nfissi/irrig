@@ -110,7 +110,7 @@ def calculate_FL(EL: float, RL: float) -> float:
         Returns:
             FL (float): Facteur de lavage
     """
-    return 1 - (EL / RL)
+    return 1 - (RL / EL)
 
 def calculate_Ea(
         db: Session,
@@ -132,19 +132,6 @@ def calculate_Ea(
     Ea = Rt * CU * Fr * FL
 
     return Ea , Rt, RL, FL
-
-
-def calculate_Ea_old(Rt: float, CU: float, FL: float, Fr: float = 1) -> float:
-    """Calculate Irrigation Efficiency
-        Args:
-            Rt (float): Relation de transpiration
-            CU (float): Coefficient d’uniformité
-            FL (float): Facteur de lavage
-            Fr (float): Facteur d’aspersion. default to 1
-        Returns:
-            Ea (float): Efficacité d'arrosage
-    """
-    return Rt * CU * Fr * FL
 
 def calculate_ETc(crop: Crop, ET0: float) -> float:
     """ Calculate Evapotranspiration XYZ
@@ -201,16 +188,3 @@ def calculate_NRt(NRn: float, Ea: float) -> float:
 
     """
     return NRn / Ea
-
-def calculate_IS(CEa: float) -> int:
-    """Calcualte Salinity Index (SI)
-        Args:
-            CEa (float): est la conductivité électrique de l’eau d’arrosage en [dS/m].
-        Returns:
-            IS (float): Indice de salinité
-    """
-    if CEa < 0.75: return 1
-    elif CEa <= 1.5: return 2
-    elif CEa <= 3: return 3
-    else: return 4
-
