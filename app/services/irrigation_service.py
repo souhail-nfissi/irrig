@@ -19,9 +19,18 @@ class Climate(str, Enum):
 # peut s’estimer à partir de la relation de percolation selon les valeurs du
 # cadre suivant:
 def calculate_Rt(crop: Crop, climate: Climate, texture: Texture) -> float:
-    """Calcuate Transpiration Ratio (Rt) for agricultural use
-        Returns:
-            Rt (float): (relation de transpiration)
+    """Calculate the Transpiration Ratio (Rt) for irrigation.
+
+    This function estimates the transpiration ratio (Rt), which is affected by water loss due to 
+    runoff and deep percolation. In drip irrigation systems, Rt is based mainly on percolation.
+
+    Parameters:
+        crop (Crop): The crop, with its Kc, CEemax, height (H), and f values.
+        climate (Climate): The climate, either ARID or HUMID.
+        texture (Texture): The soil texture, which can be HEAVY, COARSE, MEDIUM, or FINE.
+
+    Returns:
+        float: The transpiration ratio (Rt), which helps estimate water needs for the crop.
     """
     if crop.H < 75:
         return {
@@ -70,15 +79,20 @@ def calculate_Rt(crop: Crop, climate: Climate, texture: Texture) -> float:
         }[climate][texture]
 
 def calculate_Dn(db: Session, crop_name: str, Cc: float, Pm: float) -> float:
-    """Calculate Net Irrigation Requirement (Dn) XYZ
-        Args:
-            H (float):  Profondeur des racines [cm]
-            Cc (float): Capacité au champ [mm/cm]
-            Pm (float): Point de flétrissement [mm/cm]
-            f (float):  Disponibilité de l’eau dans le sol [-]
-        Returns:
-            Dn (float): Dose nette d’arrosage [mm]
+    """Calculer la Dose nette d’arrosage (Dn).
+
+    Cette fonction estime la dose nette d’arrosage (Dn) en fonction des paramètres du sol et de la culture.
+
+    Args:
+        db (Session): La session de base de données pour interroger les données de la culture.
+        crop_name (str): Le nom de la culture pour récupérer les données correspondantes.
+        Cc (float): Capacité au champ (mm/cm) du sol.
+        Pm (float): Point de flétrissement (mm/cm) du sol.
+
+    Returns:
+        float: La dose nette d’arrosage (Dn) en millimètres.
     """
+
     crop = db.query(Crop).filter(Crop.name == crop_name).first()
     if not crop:
         raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
@@ -86,29 +100,27 @@ def calculate_Dn(db: Session, crop_name: str, Cc: float, Pm: float) -> float:
     return crop.H * (Cc - Pm) * crop.f
 
 def calculate_RL(crop: Crop, CEa: float) -> float:
-    """Calculate The Leaching Requirement (LR) XYZ
-        Args:
-            CEa (float): est la conductivité électrique de l’eau d’arrosage en [dS/m].
-            CEemax (float): est la conductivité électrique du sol à partir de
-                            laquelle la diminution de la production de la
-                            plante est de 100% en [dS/m]. Des valeurs pour
-                            différentes plantes peuvent être obtenues à partir
-                            du document « Estudio FAO riego y drenaje nº 56. »
-                            ou sa version en anglais (référence bibliographique
-                            [5]).
-        Returns:
-            RL (float): La relation de lavage
+    """Calculer la Relation de Lavage (RL).
 
+    Cette fonction estime la relation de lavage (RL) en fonction de la conductivité électrique 
+    de l’eau d’arrosage et des caractéristiques de la culture.
+
+    Args:
+        crop (Crop): The crop, with its Kc, CEemax, height (H), and f values.
+        CEa (float): Conductivité électrique de l'eau d’arrosage en [dS/m].
+
+    Returns:
+        float: La relation de lavage (RL)
     """
     return CEa / (2 * crop.CEemax)
 
 def calculate_FL(EL: float, RL: float) -> float:
     """Calculate Leaching Fraction
-        Args:
-            EL (float): L’efficacité de lavage
-            RL (float) : La relation de lavage
-        Returns:
-            FL (float): Facteur de lavage
+    Args:
+        EL (float): L’efficacité de lavage
+        RL (float) : La relation de lavage
+    Returns:
+        float: Facteur de lavage (FL)
     """
     return 1 - (RL / EL)
 
@@ -134,37 +146,37 @@ def calculate_Ea(
     return Ea , Rt, RL, FL
 
 def calculate_ETc(crop: Crop, ET0: float) -> float:
-    """ Calculate Evapotranspiration XYZ
-        Args:
-            db (Session): SQLAlchemy database session.
-            crop_name (str): The name of the crop.
-            ET0 (float): Évapotranspiration de référence [mm/mois] ou [mm/jour]
-            Kc (float):   Coefficient de culture [-]
-        Returns:
-            ETc (float): Évapotranspiration
+    """Calculate Evapotranspiration XYZ
+    Args:
+        crop (Crop): The crop, with its Kc, CEemax, height (H), and f values.
+        ET0 (float): Évapotranspiration de référence [mm/mois] ou [mm/jour]
+    Returns:
+        float: Évapotranspiration (ETc)
 
-        Raises:
-            HTTPException: If the crop does not exist in the database.
+    Raises:
+        HTTPException: If the crop does not exist in the database.
     """
     return crop.Kc * ET0
 
 def calculate_Pe(P: float) -> float:
     """ Calcualte Monthly Recorded Precipitation
-        Args:
-            P (float): Précipitations mensuelles enregistrées
-        Returns:
-            Pe (float): précipitations efficace
+    Args:
+        P (float): Précipitations mensuelles enregistrées
+    Returns:
+        float: précipitations efficace (Pe)
     """
     return 0.8 * P - 25 if P > 75 else 0.6 * P - 10
 
 def calculate_NRn(db: Session, crop_name: str, ET0: float, P: float) -> tuple[float, float, float]:
     """Calculate  Calculate Net Water Requirements XYZ
-        Args:
-            ETc (float): Evapotranspiration de la culture [mm/mois] ou [mm/jour]
-            Pe (float): Précipitations efficaces [mm/mois] ou [mm/jour]
+    Args:
+        db (Session): La session de base de données pour interroger les données de la culture.
+        crop_name (str): Le nom de la culture pour récupérer les données correspondantes.
+        ET0 (float): Évapotranspiration de référence [mm/mois] ou [mm/jour]
+        P (float): Précipitations mensuelles enregistrées
 
-        Returns:
-            NRn (float) : Besoins hydriques nets  [mm/mois] ou [mm/jour]
+    Returns:
+        float: Besoins hydriques nets  [mm/mois] ou [mm/jour] (NRn)
     """
     crop = db.query(Crop).filter(Crop.name == crop_name).first()
     if not crop:
@@ -180,11 +192,11 @@ def calculate_NRn(db: Session, crop_name: str, ET0: float, P: float) -> tuple[fl
 def calculate_NRt(NRn: float, Ea: float) -> float:
     """Calculate  Calculate Total Water Requirements
 
-        Args:
-            NRn (float) : Besoins hydriques nets  [mm/mois] ou [mm/jour]
-            Ea (float): Efficacité d'arrosage
-        Returns:
-            NRt (float) : Besoins hydriques total  [mm/mois] ou [mm/jour]
+    Args:
+        NRn (float) : Besoins hydriques nets  [mm/mois] ou [mm/jour]
+        Ea (float): Efficacité d'arrosage
+    Returns:
+        float: Besoins hydriques total  [mm/mois] ou [mm/jour] (NRt)
 
     """
     return NRn / Ea
