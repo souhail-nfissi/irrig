@@ -20,4 +20,4 @@ COPY ./scripts ./scripts
 RUN chmod +x ./scripts/run_all.sh
 
 # Run the setup script (e.g., to create an admin user), then start the app
-CMD ["sh", "-c", "./scripts/run_all.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python ./scripts/create_admin.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
