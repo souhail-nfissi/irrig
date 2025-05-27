@@ -22,7 +22,10 @@ from fastapi import APIRouter, Depends
 router = APIRouter()
 
 @router.get("/calculateNRn", response_model=NRnOut)
-def get_NRn(data: NRnInput, db: Session = Depends(get_db)):
+def get_NRn(
+        data: NRnInput = Depends(),
+        db: Session = Depends(get_db)
+):
     NRn, Pe, ETc = calculate_NRn(db=db, **dict(data))
     return NRnOut(
         NRn=round(NRn, 2),
@@ -31,7 +34,10 @@ def get_NRn(data: NRnInput, db: Session = Depends(get_db)):
     )
 
 @router.get("/calculateEa", response_model=EaOut)
-def get_Ea(data: EaInput, db: Session = Depends(get_db)):
+def get_Ea(
+        data: EaInput = Depends(),
+        db: Session = Depends(get_db)
+):
     Ea, Rt, RL, FL = calculate_Ea(db=db, **dict(data))
 
     return EaOut(
@@ -43,7 +49,10 @@ def get_Ea(data: EaInput, db: Session = Depends(get_db)):
 
 
 @router.get("/calculateNRt", response_model=NRtOut)
-def get_NRt(data: NRtInput, db: Session = Depends(get_db)):
+def get_NRt(
+        data: NRtInput = Depends(),
+        db: Session = Depends(get_db)
+):
     NRn, *_ = calculate_NRn(
         db=db,
         crop_name=data.crop_name,
@@ -67,13 +76,19 @@ def get_NRt(data: NRtInput, db: Session = Depends(get_db)):
     )
 
 @router.get("/calculateDn", response_model=DnOut)
-def get_Dn(data: DnInput, db: Session = Depends(get_db)):
+def get_Dn(
+    data: DnInput = Depends(),
+    db: Session = Depends(get_db)
+):
     return DnOut(
         Dn=calculate_Dn(db=db, **dict(data)),
     )
 
 @router.get("/calculateDt", response_model=DtOut)
-def get_Dt(data: DtInput, db: Session = Depends(get_db)):
+def get_Dt(
+    data: DtInput = Depends(),
+    db: Session = Depends(get_db)
+):
     Dn = calculate_Dn(
         db=db,
         crop_name=data.crop_name,
