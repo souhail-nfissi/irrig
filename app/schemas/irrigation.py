@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.services.irrigation_service import Texture, Climate
+from app.services.irrigation_service import Texture
 
 class NRnInput(BaseModel):
     crop_name: str

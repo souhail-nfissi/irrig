@@ -1,4 +1,3 @@
-from pydantic import ValidationError
 from cachetools import TTLCache, cached
 from urllib.parse import urlencode
 import requests

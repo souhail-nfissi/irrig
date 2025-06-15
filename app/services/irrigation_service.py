@@ -138,7 +138,7 @@ def calculate_Ea(
 
     climate_data = get_climate(lat, lon)
     if not climate_data or "climate" not in climate_data:
-        raise ValueError(f"Failed to determine climate for location ({lat}, {lon})")
+        raise HTTPException(status_code=502, detail="Could not retrieve climate data")
 
     climate = climate_data["climate"]
 
