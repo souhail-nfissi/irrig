@@ -9,4 +9,7 @@ def get_climate_info(
     data: ClimateInput = Depends()
 ):
     """Fetch the climate data."""
-    return get_climate(**dict(data))
+    climate_data = get_climate(**dict(data))
+
+    climate_data["climate"] = climate_data["climate"].value
+    return climate_data

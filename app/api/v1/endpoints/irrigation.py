@@ -56,16 +56,17 @@ def get_NRt(
     NRn, *_ = calculate_NRn(
         db=db,
         crop_name=data.crop_name,
-        ET0=data.ET0,
-        P=data.P,
+        lat=data.lat,
+        lon=data.lon,
     )
     Ea, *_ = calculate_Ea(
         db=db,
         crop_name=data.crop_name,
+        lat=data.lat,
+        lon=data.lon,
         CEa=data.CEa,
         EL=data.EL,
         texture=data.texture,
-        climate=data.climate,
         CU=data.CU,
     )
 
@@ -98,10 +99,11 @@ def get_Dt(
     Ea, *_ = calculate_Ea(
         db=db,
         crop_name=data.crop_name,
+        lat=data.lat,
+        lon=data.lon,
         CEa=data.CEa,
         EL=data.EL,
         texture=data.texture,
-        climate=data.climate,
         CU=data.CU,
     )
 

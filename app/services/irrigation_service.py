@@ -2,16 +2,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.crop import Crop
 from enum import Enum
+from app.services.climate_service import get_climate, Climate
 
 class Texture(str, Enum):
     HEAVY = "HEAVY"
     COARSE = "COARSE"
     MEDIUM = "MEDIUM"
     FINE = "FINE"
-
-class Climate(str, Enum):
-    ARID = "ARID"
-    HUMID = "HUMID"
 
 # Rt (relation de transpiration) : Ce coefficient prend en compte les pertes
 # par ruissellement et par percolation profonde. Dans les systèmes
@@ -127,9 +124,10 @@ def calculate_FL(EL: float, RL: float) -> float:
 def calculate_Ea(
         db: Session,
         crop_name: str,
+        lat: float,
+        lon: float,
         CEa: float,
         EL: float,
-        climate: Climate,
         texture: Texture,
         CU: float,
         Fr: float = 1
@@ -137,6 +135,12 @@ def calculate_Ea(
     crop = db.query(Crop).filter(Crop.name == crop_name).first()
     if not crop:
         raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
+
+    climate_data = get_climate(lat, lon)
+    if not climate_data or "climate" not in climate_data:
+        raise ValueError(f"Failed to determine climate for location ({lat}, {lon})")
+
+    climate = climate_data["climate"]
 
     RL = calculate_RL(crop=crop, CEa=CEa)
     FL = calculate_FL(EL=EL, RL=RL)
@@ -167,13 +171,13 @@ def calculate_Pe(P: float) -> float:
     """
     return 0.8 * P - 25 if P > 75 else 0.6 * P - 10
 
-def calculate_NRn(db: Session, crop_name: str, ET0: float, P: float) -> tuple[float, float, float]:
-    """Calculate  Calculate Net Water Requirements XYZ
+def calculate_NRn(db: Session, crop_name: str, lat: float, lon: float) -> tuple[float, float, float]:
+    """Calculate  Calculate Net Water Requirements
     Args:
         db (Session): La session de base de données pour interroger les données de la culture.
         crop_name (str): Le nom de la culture pour récupérer les données correspondantes.
-        ET0 (float): Évapotranspiration de référence [mm/mois] ou [mm/jour]
-        P (float): Précipitations mensuelles enregistrées
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
 
     Returns:
         float: Besoins hydriques nets  [mm/mois] ou [mm/jour] (NRn)
@@ -181,6 +185,9 @@ def calculate_NRn(db: Session, crop_name: str, ET0: float, P: float) -> tuple[fl
     crop = db.query(Crop).filter(Crop.name == crop_name).first()
     if not crop:
         raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
+
+    climate_data = get_climate(lat, lon)
+    ET0, P = climate_data["ET0"], climate_data["precipitation"]
 
     ETc = calculate_ETc(crop=crop, ET0=ET0)
     Pe = calculate_Pe(P)

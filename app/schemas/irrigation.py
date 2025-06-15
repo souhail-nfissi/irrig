@@ -3,8 +3,8 @@ from app.services.irrigation_service import Texture, Climate
 
 class NRnInput(BaseModel):
     crop_name: str
-    ET0: float
-    P: float
+    lat: float
+    lon: float
 
 class NRnOut(BaseModel):
     NRn: float
@@ -13,10 +13,12 @@ class NRnOut(BaseModel):
 
 class EaInput(BaseModel):
     crop_name: str
+    lat: float
+    lon: float
+
     CEa: float
     EL: float
     texture: Texture
-    climate: Climate
     CU: float
 
 class EaOut(BaseModel):
@@ -28,21 +30,17 @@ class EaOut(BaseModel):
 
 class NRtInput(BaseModel):
     crop_name: str
-    # Kc: float
-    ET0: float
-    P: float
+    lat: float
+    lon: float
 
     CU: float
     # RT
-    H: float
     texture: Texture
-    climate: Climate
 
     # FL
     EL: float
     # FL: RL
     CEa: float
-    CEemax: float
 
 class NRtOut(BaseModel):
     NRt: float
@@ -60,13 +58,15 @@ class DnOut(BaseModel):
 
 class DtInput(BaseModel):
     crop_name: str
+    lat: float
+    lon: float
+
     Cc: float
     Pm: float
 
     CEa: float
     EL: float
     texture: Texture
-    climate: Climate
     CU: float
 
 class DtOut(BaseModel):
