@@ -50,8 +50,7 @@ class NRtOut(BaseModel):
 
 class DnInput(BaseModel):
     crop_name: str
-    Cc: float
-    Pm: float
+    texture: Texture
 
 class DnOut(BaseModel):
     Dn: float

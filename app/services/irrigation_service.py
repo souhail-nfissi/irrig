@@ -10,6 +10,14 @@ class Texture(str, Enum):
     MEDIUM = "MEDIUM"
     FINE = "FINE"
 
+# Soil water properties based on texture
+SOIL_PROPERTIES = {
+    Texture.COARSE: {"Cc": 1.2, "Pm": 0.5},   # e.g., sandy soil
+    Texture.MEDIUM: {"Cc": 2.0, "Pm": 1.0},   # e.g., loam
+    Texture.FINE:   {"Cc": 2.5, "Pm": 1.4},   # e.g., silty clay
+    Texture.HEAVY:  {"Cc": 2.8, "Pm": 1.6},   # e.g., clay-heavy soil
+}
+
 # Rt (relation de transpiration) : Ce coefficient prend en compte les pertes
 # par ruissellement et par percolation profonde. Dans les systèmes
 # goutte-à-goutte, en absence de ruissellement, la relation de transpiration
@@ -75,7 +83,7 @@ def calculate_Rt(crop: Crop, climate: Climate, texture: Texture) -> float:
             },
         }[climate][texture]
 
-def calculate_Dn(db: Session, crop_name: str, Cc: float, Pm: float) -> float:
+def calculate_Dn(db: Session, crop_name: str, texture: Texture) -> float:
     """Calculer la Dose nette d’arrosage (Dn).
 
     Cette fonction estime la dose nette d’arrosage (Dn) en fonction des paramètres du sol et de la culture.
@@ -93,6 +101,13 @@ def calculate_Dn(db: Session, crop_name: str, Cc: float, Pm: float) -> float:
     crop = db.query(Crop).filter(Crop.name == crop_name).first()
     if not crop:
         raise HTTPException(status_code=404, detail=f"Crop '{crop_name}' not found.")
+
+    props = SOIL_PROPERTIES.get(texture)
+    if not props:
+        raise HTTPException(status_code=400, detail="Invalid soil texture.")
+
+    Cc = props["Cc"]
+    Pm = props["Pm"]
 
     return crop.H * (Cc - Pm) * crop.f
 
