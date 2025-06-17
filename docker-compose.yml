@@ -1,10 +1,10 @@
 services:
-  web:
-    build: .
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: irrig_backend
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
     env_file:
-      - .env
+      - ./backend/.env
