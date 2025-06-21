@@ -1,5 +1,5 @@
 {
-  description = "A Nix-flake-based Python development environment";
+  description = "A Nix-flake-based irrig development environment";
 
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
 
@@ -14,6 +14,8 @@
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
           packages = with pkgs; [
+            nodejs_22
+
             insomnia
             python311
             python311Packages.pip
