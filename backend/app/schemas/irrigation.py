@@ -72,3 +72,13 @@ class DtOut(BaseModel):
     Dt: float
     Dn: float
     Ea: float
+
+
+class IInput(BaseModel):
+    crop_name: str
+    texture: Texture
+    lat: float
+    lon: float
+
+class IOut(BaseModel):
+    I: float

@@ -11,11 +11,14 @@ from app.schemas.irrigation import (
     DnOut,
     DtInput,
     DtOut,
+    IInput,
+    IOut,
 )
 from app.services.irrigation_service import (
     calculate_NRn,
     calculate_Ea,
     calculate_Dn,
+    calculate_I,
 )
 from fastapi import APIRouter, Depends
 
@@ -111,4 +114,27 @@ def get_Dt(
         Dt=round(Dn/Ea, 2),
         Dn=round(Dn, 2),
         Ea=round(Ea, 2),
+    )
+
+
+@router.get("/calculateI", response_model=IOut)
+def get_I(
+    data: IInput = Depends(),
+    db: Session = Depends(get_db)
+):
+    Dn = calculate_Dn(
+        db=db,
+        crop_name=data.crop_name,
+        texture=data.texture,
+    )
+
+    NRn, *_ = calculate_NRn(
+        db=db,
+        crop_name=data.crop_name,
+        lat=data.lat,
+        lon=data.lon,
+    )
+
+    return IOut(
+            I=calculate_I(NRn, Dn),
     )

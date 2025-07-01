@@ -222,3 +222,6 @@ def calculate_NRt(NRn: float, Ea: float) -> float:
 
     """
     return NRn / Ea
+
+def calculate_I(NRn: float,  Dn: float) -> float:
+    return NRn / Dn
